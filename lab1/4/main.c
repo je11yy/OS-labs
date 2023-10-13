@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <limits.h>
+#include <math.h>
 
 enum ERRORS
 {
@@ -22,26 +22,35 @@ enum FLAGS
 
 void print_error(int error);
 
-int check_valid_flag(const char *flag);
-
 int get_decimal_number(char* number, int base);
 
-int make_decimal(int array[]);
+int check_valid_flag(const char *flag);
 
-int check_valid_mask(const char *mask_string);
+int check_valid_mask(char *mask_string);
 
-long int xor_8(FILE *file);
+unsigned char xor_8(FILE *file);
 
-int xor_32(FILE *file);
+void xor_32(FILE *file, unsigned char result[]);
 
-int find_mask(FILE* file, char *mask_string);
+int find_mask(FILE* file, int mask_int);
 
-int main(int argc, unsigned char *argv[])
+int main(int argc, char *argv[])
 {
+    FILE *file = fopen(argv[1], "wb");
+    int length = 10;
+    unsigned char numbers[] = {1, 7, 4, 3, 9, 0, 1, 0, 5, 2};
+    for (int i = 0; i < length; ++i)
+    {
+        fwrite(&(numbers[i]), sizeof(unsigned char), 1, file);
+    }
+    fclose(file);
+
     FILE* input;
     int flag;
-    int mask_int;
-    long int result;
+    unsigned char result;
+    unsigned char array_result[] = {0, 0, 0, 0};
+    int int_result;
+
     if (argc == 3)
     {
         input = fopen(argv[1], "rb");
@@ -61,24 +70,17 @@ int main(int argc, unsigned char *argv[])
         else if (flag == xor8)
         {
             result = xor_8(input);
-            if (result == file_input_error)
-            {
-                print_error(result);
-                fclose(input);
-                return result;
-            }
-            printf("Result for XOR-operation with all bytes in file: %li\n", result);
+            printf("Result for XOR-operation with all bytes in file: %u\n", result);
         }
         else
         {
-            result = xor_32(input);
-            if (result == file_input_error)
+            xor_32(input, array_result);
+            printf("Result for XOR-operation for 4-bytes groups in file: ");
+            for (int i = 0; i < 4; ++i)
             {
-                print_error(result);
-                fclose(input);
-                return result;
+                printf("%u ", array_result[i]);
             }
-            printf("Result for XOR-operation for 4-bytes groups in file: %d\n", result);
+            printf("\n");
         }
     }
     else if (argc == 4)
@@ -91,27 +93,21 @@ int main(int argc, unsigned char *argv[])
         }
 
         flag = check_valid_flag(argv[2]);
-        mask_int = check_valid_mask(argv[3]);
         if (flag != mask)
         {
             print_error(incorrect_input);
             fclose(input);
             return incorrect_input;
         }
-        if (mask_int == incorrect_input)
+        int_result = check_valid_mask(argv[3]);
+        if (int_result == incorrect_input)
         {
             print_error(incorrect_input);
             fclose(input);
             return incorrect_input;
         }
-        result = find_mask(input, argv[3]);
-        if (result == file_input_error)
-        {
-            print_error(result);
-            fclose(input);
-            return result;
-        }
-        printf("Number of 4-bytes numbers that match the mask: %li", result);
+        int_result = find_mask(input, int_result);
+        printf("Number of 4-bytes numbers that match the mask: %d", int_result);
     }
     else
     {
@@ -123,35 +119,36 @@ int main(int argc, unsigned char *argv[])
     return success;
 }
 
-long int xor_8(FILE *file)
+unsigned char xor_8(FILE *file)
 {
     unsigned char byte;
-    long int result = 0;
+    unsigned char result = 0;
     while (fread(&byte, sizeof(unsigned char), 1, file) == 1)
     {
-        if (ferror(file)) return file_input_error;
         result ^= byte;
     }
     return result;
 }
 
-int xor_32(FILE *file)
+void xor_32(FILE *file, unsigned char result[])
 {
-    int bytes[4] = {0, 0, 0, 0};
-    int byte;
-    long int result = 0;
+    unsigned char bytes[4] = {0, 0, 0, 0};
+    unsigned char byte;
     int index = 0;
+    int check;
     int value;
     while (!feof(file))
     {
-        byte = fgetc(file);
-        if (byte == EOF) break;
+        check = fread(&byte, sizeof(unsigned char), 1, file);
+        if (check != 1) break;
+
         bytes[index] = byte;
-        if (ferror(file)) return file_input_error;
         if (index == 3)
         {
-            value = bytes[0] ^ bytes[1] ^ bytes[2] ^ bytes[3];
-            result ^= value;
+            for (int i = 0; i < 4; ++i)
+            {
+                result[i] ^= bytes[i];
+            }
             index = 0;
         }
         else index++;
@@ -160,60 +157,51 @@ int xor_32(FILE *file)
     {
         bytes[i] = 0;
     }
-    value = bytes[0] ^ bytes[1] ^ bytes[2] ^ bytes[3];
-    result ^= value;
+    for (int i = 0; i < 4; ++i)
+    {
+        result[i] ^= bytes[i];
+    }
 
-    return result;
+    return;
+}
+
+int find_mask(FILE* file, int mask_int)
+{
+    unsigned char bytes[4];
+    int count = 0;
+    int value;
+    while (fread(&bytes, 4 * sizeof(unsigned char), 1, file) == 1)
+    {
+        for (int i = 0; i < 4; ++i)
+        {
+            printf("%u ", bytes[i]);
+        }
+        printf("\n");
+        value = pow(256, 0) * bytes[0] + pow(256, 1) * bytes[1] + pow(256, 2) * bytes[2] + pow(256, 3) * bytes[3];
+        printf("%d %d\n", value, mask_int);
+        if (memcmp(bytes, &mask_int, 4) == 0) count++;
+    }
+    return count;
 }
 
 int get_decimal_number(char* number, int base)
 {
     int result = 0;
     char *ptr = number - 1;
+    int flag = 0;
+    if (*(++ptr) == '-') flag = 1;
+    else --ptr;
 
-    while (*(++ptr))
+    while (*(++ptr) != '\0')
     {
         result = result * base + (isdigit(*ptr) ? *ptr - '0' : tolower(*ptr) - 'a' + 10);
     }
+    if (flag == 1) result *= -1;
 
     return result;
 }
 
-int make_decimal(int array[])
-{
-    int result = 0;
-    int step = 1000;
-    for (int i = 0; i < 4; ++i)
-    {
-        result += step * array[i];
-        step /= 10;
-    }
-    return result;
-}
-
-int find_mask(FILE* file, char *mask_string)
-{
-    int bytes[4] = {0, 0, 0, 0};
-    int byte;
-    int index = 0;
-    int count = 0;
-    int mask_int = get_decimal_number(mask_string, 16);
-    int value;
-    while ((byte = fgetc(file)) != EOF)
-    {
-        bytes[index] = byte;
-        if (index == 3)
-        {
-            value = make_decimal(bytes);
-            if (value == mask_int) count++;
-            index = 0;
-        }
-        else index++;
-    }
-    return count;
-}
-
-int check_valid_mask(const char *mask_string)
+int check_valid_mask(char *mask_string)
 {
     int length = strlen(mask_string);
     char symbol;
@@ -225,8 +213,11 @@ int check_valid_mask(const char *mask_string)
             return incorrect_input;
         }
     }
+    int result = get_decimal_number(mask_string, 16);
+    int size = (log2(result - 1) + 1) / 8;
+    if (size > 4) return incorrect_input;
 
-    return success;
+    return result;
 }
 
 int check_valid_flag(const char *flag)
