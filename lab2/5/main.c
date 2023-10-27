@@ -19,7 +19,7 @@ pthread_cond_t man_condition;
 int quantity = 0; // количество людей в ванной
 char current_gender = 0;
 pthread_mutex_t mutex;
-int N = 5;
+int N;
 
 void bathroom_simulation(int man, int woman);
 void * man_thread(void * argument);
@@ -29,8 +29,14 @@ void man_wants_to_enter();
 void woman_leaves();
 void man_leaves();
 
-int main()
+int main(int argc, char * argv[])
 {
+    if (argc != 2)
+    {
+        printf("\nIncorrect input.\n");
+        return incorrect_input;
+    }
+    N = atoi(argv[1]);
     printf("Enter number of men and women who want to go to the bathroom.\n\n");
     int man, woman;
     printf("Women: ");
