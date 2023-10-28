@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
     }
 
     pid_t pid;
-    const char * substring = "shiza";
+    const char * substring = "s ";
     char symbol;
     int length = 1, count = 0;
     char * file_name = (char*)malloc(length * sizeof(char));
@@ -41,6 +41,7 @@ int main(int argc, char *argv[])
     char * temp;
     int count_success_files = 0;
     int result, status;
+
     while ((symbol = fgetc(main_file)) != EOF)
     {
         if (symbol == ' ' || symbol == '\n' || symbol == ',')
@@ -139,7 +140,8 @@ int search_string(const char * file_name, const char * substring, int *count)
                 *count += 1;
                 return success;
             }
-            symbols_count = 0;
+            temp_string[0] = temp_string[1];
+            symbols_count = 1;
         }
         temp_string[symbols_count] = symbol;
         symbols_count++;
