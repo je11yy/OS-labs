@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
     }
 
     pid_t pid;
-    const char * substring = "s ";
+    const char * substring = "mama";
     char symbol;
     int length = 1, count = 0;
     char * file_name = (char*)malloc(length * sizeof(char));
@@ -42,9 +42,10 @@ int main(int argc, char *argv[])
     int count_success_files = 0;
     int result, status;
 
-    while ((symbol = fgetc(main_file)) != EOF)
+    while (symbol != EOF)
     {
-        if (symbol == ' ' || symbol == '\n' || symbol == ',')
+        symbol = fgetc(main_file);
+        if (symbol == ' ' || symbol == '\n' || symbol == ',' || symbol == EOF)
         {
             file_name[count] = '\0';
             count = 0;
@@ -71,7 +72,7 @@ int main(int argc, char *argv[])
                 {
                     printf("%s\n", file_name);
                 }
-                exit(count_success_files);
+                _Exit(count_success_files);
             }
             else
             {
@@ -127,6 +128,11 @@ int search_string(const char * file_name, const char * substring, int *count)
     if (!file) return file_open_error;
 
     int length = strlen(substring), symbols_count = 0, all_symbols_count = 0;
+    if (length == 0)
+    {
+        fclose(file);
+        return fail;
+    }
     char temp_string[length + 1];
     temp_string[length] = 0;
     char symbol;
@@ -140,8 +146,11 @@ int search_string(const char * file_name, const char * substring, int *count)
                 *count += 1;
                 return success;
             }
-            temp_string[0] = temp_string[1];
-            symbols_count = 1;
+            symbols_count = length - 1;
+            for (int i = 0; i < length - 1; ++i)
+            {
+                temp_string[i] = temp_string[i + 1];
+            }
         }
         temp_string[symbols_count] = symbol;
         symbols_count++;
