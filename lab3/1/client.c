@@ -70,7 +70,7 @@ int main(int argc, char * argv[])
         }
         fclose(file);
     }
-
+    sleep(1); // дать время серверу обработать все сообщения
     Message msg;
     while (message_sent)
     {

@@ -45,7 +45,6 @@ void process_message(Message msg, int queue_id)
             }
         }
     }
-    msg.type = 2;
     strcpy(msg.text, tmp);
     msgsnd(queue_id, &msg, sizeof(msg), IPC_NOWAIT);
 }
@@ -72,8 +71,6 @@ int main()
         {
             printf("Server got the message with highest priority. Ending session...\n");
             // отправляем так же сообщение с типом 0, чтобы завершить сессию клиента
-            msg.type = 1;
-            msgsnd(client_queue, &msg, sizeof(msg), IPC_NOWAIT);
             break;
         }
         process_message(msg, client_queue);
