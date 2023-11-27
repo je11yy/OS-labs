@@ -8,13 +8,7 @@ enum ERRORS
     incorrect_input = -3
 };
 
-int is_diviser(char symbol)
-{
-    char * div = "!.,?";
-    int len = strlen(div);
-    for (int i = 0; i < len; ++i) if (symbol == div[i]) return 1;
-    return 0;
-}
+int server_queue, client_queue;
 
 void generate_queues(int * server_id, int * client_id)
 {
@@ -33,27 +27,40 @@ void process_message(Message msg, int queue_id)
     char tmp[MAX_LENGTH];
     strcpy(tmp, msg.text);
     char prev, cur;
-    for (int i = 0; i < length; ++i)
+    int i = 0;
+    while (i < length)
     {
         prev = cur;
         cur = tmp[i];
-        if (prev == cur && (cur == ' ' || cur == '\t' || cur == '\n' || is_diviser(cur)))
+        if (prev == cur && (cur == ' ' || cur == '\t' || cur == '\n'))
         {
             for (int j = i; j < length; ++j)
             {
                 tmp[j] = tmp[j + 1];
             }
         }
+        else i++;
     }
     strcpy(msg.text, tmp);
     msgsnd(queue_id, &msg, sizeof(msg), IPC_NOWAIT);
 }
 
+void delete_queues()
+{
+    int res = msgctl(server_queue, IPC_RMID, 0);
+    if (res != -1) printf("Server queue was cleared.\n");
+    else printf("Server queue doesn't exist! Failed to delete queue.\n");
+    res = msgctl(client_queue, IPC_RMID, 0);
+    if (res != -1) printf("Client queue was cleared.\n");
+    else printf("Client queue doesn't exist! Failed to delete queue.\n");
+}
+
 int main()
 {
-    int server_queue, client_queue;
     // создание клиентской и серверной очередей
     generate_queues(&server_queue, &client_queue);
+
+    atexit(delete_queues);
 
     printf("Server online...\n");
 
@@ -67,20 +74,15 @@ int main()
         */
         if (msgrcv(server_queue, &msg, sizeof(msg), -MAX_PRIORITY, IPC_NOWAIT) < 0) continue;
         printf("Server got the message...\n");
+        process_message(msg, client_queue);
         if (msg.type == 1)
         {
             printf("Server got the message with highest priority. Ending session...\n");
-            // отправляем так же сообщение с типом 0, чтобы завершить сессию клиента
+            sleep(2);
             break;
         }
-        process_message(msg, client_queue);
     }
 
-    msgctl(server_queue, IPC_RMID, 0);
-    printf("Server queue was cleared.\n");
-    msgctl(client_queue, IPC_RMID, 0);
-    printf("Client queue was cleared.\n");
-
     printf("Server process is finished.\n");
-    return success;
+    exit(EXIT_SUCCESS);
 }

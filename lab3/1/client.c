@@ -81,6 +81,11 @@ int main(int argc, char * argv[])
         */
         if (msgrcv(client_queue, &msg, sizeof(msg), -MAX_PRIORITY, IPC_NOWAIT) < 0) continue;
         printf("Server answer: %s\nPriority: %ld\n", msg.text, msg.type);
+        if (msg.type == 1)
+        {
+            printf("Server got message with highest priority. Ending session...\n");
+            break;
+        }
         message_sent--;
     }
 
